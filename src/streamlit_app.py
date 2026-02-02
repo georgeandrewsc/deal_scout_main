@@ -13,6 +13,11 @@ import numpy as np
 import requests
 from st_aggrid import AgGrid
 
+# Import futuristic font from Google Fonts
+st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+""", unsafe_allow_html=True)
+
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
 # ── Full-screen responsive video: plays once, freezes on last frame, covers entire screen ──
@@ -75,12 +80,20 @@ video_background = """
 
 st.markdown(video_background, unsafe_allow_html=True)
 
-st.title("Deals Scout Daily – Family MVP")
 st.markdown("""
-Pulls active listings from CRMLS API → filters out condos/units/HOA/low-value →  
-joins with zoning → calculates potential units & price per unit.  
-Sort the table however you want (click column headers).
-""")
+<h1 style="
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    color: white;
+    text-align: center;
+    font-size: 3.5rem;          /* adjust size as needed */
+    margin-bottom: 1rem;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);  /* subtle glow for futuristic effect */
+">
+    Deal Scout
+</h1>
+""", unsafe_allow_html=True)
+st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
 
 # ── Secrets (add these in Streamlit Cloud → Settings → Secrets) ──
 CLIENT_ID     = st.secrets.get("CLIENT_ID", "32faf26bf8db4e12ac712b9c9f578faa")
@@ -108,7 +121,48 @@ zoning_gdf = load_zoning()
 st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
 
 # ── Fetch & Process Button ────────────────────────────────
-if st.button("Fetch & Process Latest Deals", type="primary"):
+# Move this CSS block higher — right after the Google Fonts import
+# (or keep it here if you prefer, but it needs to load before the button)
+st.markdown("""
+<style>
+    .stButton > button {
+        font-family: 'Orbitron', sans-serif !important;
+        font-weight: 900;
+        font-size: 1.8rem;               /* bigger for impact */
+        padding: 1rem 3rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);  /* orange-red futuristic gradient */
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 20px rgba(255, 107, 107, 0.7), 0 0 40px rgba(255, 142, 83, 0.4);
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 30px rgba(255, 107, 107, 1), 0 0 60px rgba(255, 142, 83, 0.7);
+        background: linear-gradient(135deg, #ff8e53, #ff6b6b);
+    }
+    .stButton > button:active {
+        transform: scale(0.98);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# The futuristic button
+if st.button("Put me on the fish", type="primary", key="fish_button"):
+    # ... your existing fetch & process code ...
+    st.markdown("""
+<style>
+    .stButton > button {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+        font-size: 1.4rem;
+        padding: 0.8rem 2rem;
+        border-radius: 8px;
+    }
+</style>
+""", unsafe_allow_html=True)
     with st.spinner("Getting API token..."):
         token_resp = requests.post(
             TOKEN_URL,
