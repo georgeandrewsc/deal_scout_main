@@ -182,36 +182,13 @@ if st.button("Fetch & Process Latest Deals", type="primary"):
         'zone_code': 'Base Zone'
     }).sort_values('Price per Unit')
 
-    # AgGrid(
-    #     display_df,
-    #     height=700,
-    #     fit_columns_on_grid_load=True,
-    #     enable_enterprise_modules=False,
-    #     key='deals_table'
-    # )
     AgGrid(
-    display_df,
-    height=700,
-    gridOptions={
-        "fitColumnsOnGridLoad": True,      # auto-size columns to fit content on first load
-        "domLayout": "autoHeight",         # optional: better height behavior
-        "suppressMenuHide": True,          # optional: keep menu visible
-    },
-    enable_enterprise_modules=False,
-    key='deals_table'
-)
-#     AgGrid(
-#     display_df,
-#     height=700,
-#     **{'fitColumnsOnGridLoad': True},      # ← correct way in recent versions
-#     # or (even better):
-#     gridOptions={
-#         'fitColumnsOnGridLoad': True,
-#         # you can add other grid options here if needed
-#     },
-#     enable_enterprise_modules=False,
-#     key='deals_table'
-# )
+        display_df,
+        height=700,
+        fit_columns_on_grid_load=True,
+        enable_enterprise_modules=False,
+        key='deals_table'
+    )
 
     # Download
     csv = display_df.to_csv(index=False).encode('utf-8')
