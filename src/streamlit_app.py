@@ -15,6 +15,66 @@ from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
+# ── Full-screen responsive video: plays once, freezes on last frame, covers entire screen ──
+video_background = """
+<style>
+    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    .stApp {
+        background: transparent !important;
+    }
+
+    #bg-video {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        width: auto;
+        height: auto;
+        transform: translate(-50%, -50%);
+        object-fit: cover;          /* Key addition: fills screen, crops if needed, no distortion */
+        z-index: -999;
+    }
+
+    .overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 20, 0.45);  /* adjust 0.45 → 0.55 if text readability needs improvement */
+        z-index: -998;
+        pointer-events: none;
+    }
+
+    .block-container {
+        position: relative;
+        z-index: 1;
+        background: transparent;
+        color: #ffffff;
+    }
+
+    .ag-theme-streamlit {
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+</style>
+
+<video id="bg-video" autoplay muted playsinline>
+    <source src="https://raw.githubusercontent.com/georgeandrewsc/deal_scout_main/main/src/assets/helios.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+
+<div class="overlay"></div>
+
+<script>
+    document.getElementById('bg-video').addEventListener('ended', function() {
+        this.pause();  // Freeze on last frame
+    });
+</script>
+"""
+
+st.markdown(video_background, unsafe_allow_html=True)
+
 st.title("Deals Scout Daily – Family MVP")
 st.markdown("""
 Pulls active listings from CRMLS API → filters out condos/units/HOA/low-value →  
