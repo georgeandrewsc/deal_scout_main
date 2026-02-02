@@ -18,6 +18,9 @@ st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
+if 'table_key' not in st.session_state:
+    st.session_state.table_key = 0
+
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
 # ── Full-screen responsive video: plays once, freezes on last frame, covers entire screen ──
@@ -283,33 +286,62 @@ if st.button("Put me on the fish", type="primary", key="fish_button"):
         matched['price_per_unit'] = matched['price_per_unit'].fillna(0).astype(int)
 
         # Final filters for realism
+                # Final filters for realism
         matched = matched[matched['price_per_unit'] >= 25000]
 
-    st.success(f"Processed! {len(matched):,} deals after all filters.")
-
-    # Display table
-    display_df = matched[['Address', 'CurrentPrice', 'max_units', 'Zoning', 'price_per_unit', 'soft_per_unit', 'zone_code']].rename(columns={
+    # ── Prepare the display dataframe ──
+    display_df = matched[[
+        'Address', 'CurrentPrice', 'max_units', 'Zoning',
+        'price_per_unit', 'soft_per_unit', 'zone_code'
+    ]].rename(columns={
         'CurrentPrice': 'Purchase Price',
         'max_units': 'Potential Units',
         'price_per_unit': 'Price per Unit',
         'soft_per_unit': 'Min Sqft/Unit',
         'zone_code': 'Base Zone'
-    }).sort_values('Price per Unit')
+    }).sort_values('Price per Unit')          # sorts from lowest to highest price per unit
 
-    AgGrid(
+    # Limit to the top 100 best deals
+    display_df = display_df.head(100)
+
+    # Show the correct number of displayed rows
+    st.success(f"Showing top {len(display_df):,} deals after all filters")
+
+    # Optional: show how many were processed before limiting
+    if len(display_df) < len(matched):
+        st.caption(f"(filtered & sorted from {len(matched):,} total matches)")
+
+    # Display the table (only 100 rows max)
+    # AgGrid(
+    #     display_df,
+    #     height=700,
+    #     fit_columns_on_grid_load=True,
+    #     enable_enterprise_modules=False,
+    #     key='deals_table'
+    # )
+    # Replace the AgGrid block with this
+    st.dataframe(
         display_df,
-        height=700,
-        fit_columns_on_grid_load=True,
-        enable_enterprise_modules=False,
-        key='deals_table'
+        use_container_width=True,
+        hide_index=True,
+        
+        # Enables multi-column sorting + column configuration
+        column_config={
+            "Address": st.column_config.TextColumn("Address", width="medium"),
+            "Purchase Price": st.column_config.NumberColumn("Purchase Price", format="%d"),
+            "Potential Units": st.column_config.NumberColumn("Potential Units", format="%d"),
+            "Price per Unit": st.column_config.NumberColumn("Price per Unit", format="%d"),
+            "Min Sqft/Unit": st.column_config.NumberColumn("Min Sqft/Unit", format="%d"),
+            "Base Zone": st.column_config.TextColumn("Base Zone"),
+            "Zoning": st.column_config.TextColumn("Zoning", width="medium"),
+        }
     )
 
-    # Download
+    # Download only the displayed rows
     csv = display_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="Download Full CSV",
+        label="Download Top 100 CSV",
         data=csv,
-        file_name="deals_filtered.csv",
+        file_name="deals_top_100.csv",
         mime="text/csv"
     )
-
