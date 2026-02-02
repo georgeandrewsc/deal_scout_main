@@ -1,1 +1,9 @@
 streamlit
+pandas
+numpy
+geopandas
+requests
+streamlit-aggrid
+fiona
+pyproj
+shapely
