@@ -15,6 +15,10 @@ from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
+# ─── Load custom styles ────────────────────────────────
+with open("src/style.css") as css:
+    st.markdown(f'<style>{css.read()}</style>', unsafe_allow_html=True)
+
 @st.cache_data(ttl="24h", show_spinner=False)
 def load_zoning():
     try:
@@ -86,12 +90,11 @@ video_background = """
 
 st.markdown(video_background, unsafe_allow_html=True)
 
-st.title("Deals Scout Daily – Family MVP")
-st.markdown("""
-Pulls active listings from CRMLS API → filters out condos/units/HOA/low-value →  
-joins with zoning → calculates potential units & price per unit.  
-Sort the table however you want (click column headers).
-""")
+
+
+# Now your app content
+st.title("Deal Scout")
+
 
 # ── Secrets (add these in Streamlit Cloud → Settings → Secrets) ──
 CLIENT_ID     = st.secrets.get("CLIENT_ID", "32faf26bf8db4e12ac712b9c9f578faa")
