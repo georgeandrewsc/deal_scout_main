@@ -15,6 +15,17 @@ from st_aggrid import AgGrid
 
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
+@st.cache_data(ttl="24h", show_spinner=False)
+def load_zoning():
+    try:
+        gdf = gpd.read_file(ZONING_URL)
+        if gdf.crs != "EPSG:4326":
+            gdf = gdf.to_crs("EPSG:4326")
+        return gdf
+    except Exception as e:
+        st.error(f"Could not load zoning: {e}")
+        return None
+
 # ── Full-screen responsive video: plays once, freezes on last frame, covers entire screen ──
 video_background = """
 <style>
@@ -93,19 +104,19 @@ ZONING_URL = "/workspaces/deal_scout_main/src/zoning.geojson"
 
 
 # ── Load zoning once (cached) ───────────────────────────────
-@st.cache_data(ttl="1h", show_spinner="Loading zoning data...")
-def load_zoning():
-    try:
-        gdf = gpd.read_file(ZONING_URL)
-        if gdf.crs != "EPSG:4326":
-            gdf = gdf.to_crs("EPSG:4326")
-        return gdf
-    except Exception as e:
-        st.error(f"Could not load zoning file from URL: {e}")
-        st.stop()
+# @st.cache_data(ttl="24h", show_spinner="Loading zoning data...")
+# def load_zoning():
+#     try:
+#         gdf = gpd.read_file(ZONING_URL)
+#         if gdf.crs != "EPSG:4326":
+#             gdf = gdf.to_crs("EPSG:4326")
+#         return gdf
+#     except Exception as e:
+#         st.error(f"Could not load zoning file from URL: {e}")
+#         st.stop()
 
-zoning_gdf = load_zoning()
-st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
+# zoning_gdf = load_zoning()
+# st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
 
 
 # ── Fetch & Process Button ────────────────────────────────
@@ -138,19 +149,45 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # The futuristic button
+# if st.button("Put me on the fish", type="primary", key="fish_button"):
+#     # ── Load zoning only when user clicks ─────────────────
+#     with st.spinner("Initializing zoning layer..."):
+#         zoning_gdf = load_zoning()
+#         if zoning_gdf is None:
+#             st.error("Failed to load zoning data")
+#             st.stop()
 if st.button("Put me on the fish", type="primary", key="fish_button"):
-    # ... your existing fetch & process code ...
-    st.markdown("""
-<style>
-    .stButton > button {
-        font-family: 'Orbitron', sans-serif;
-        font-weight: 700;
-        font-size: 1.4rem;
-        padding: 0.8rem 2rem;
-        border-radius: 8px;
-    }
-</style>
-""", unsafe_allow_html=True)
+
+    # ── Show feedback IMMEDIATELY ────────────────────────────────
+    status = st.status("Starting process...", expanded=True)
+    status.update(label="Initializing zoning layer...", state="running")
+
+    # Small placeholder so the user sees something is happening right away
+    placeholder = st.empty()
+    placeholder.spinner("Loading zoning data... please wait")
+
+    # ── Now do the actual (possibly slow) loading ─────────────────
+    zoning_gdf = load_zoning()
+
+    # Remove the placeholder spinner
+    placeholder.empty()
+
+    if zoning_gdf is None:
+        status.update(label="Failed to load zoning data", state="error")
+        st.stop()
+
+    # Update status — now we know it's done
+    status.update(
+        label=f"Zoning layer loaded successfully ({len(zoning_gdf):,} polygons)",
+        state="complete"
+    )
+
+    # ── Continue with the rest of your process ───────────────────
+    # status.update(label="Authenticating with API...", state="running")
+
+    st.success(f"Zoning ready — {len(zoning_gdf):,} polygons")
+
+    # Then continue with token, API fetch, etc.
     with st.spinner("Getting API token..."):
         token_resp = requests.post(
             TOKEN_URL,
