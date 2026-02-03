@@ -327,7 +327,7 @@ if st.button("Put me on the fish", type="primary", key="fish_button"):
     }).sort_values('Price per Unit')          # sorts from lowest to highest price per unit
 
     # Limit to the top 100 best deals
-    display_df = display_df.head(100)
+    display_df = display_df.head(1000)
 
     # Show the correct number of displayed rows
     st.success(f"Showing top {len(display_df):,} deals after all filters")
