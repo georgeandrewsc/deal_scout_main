@@ -13,14 +13,6 @@ import numpy as np
 import requests
 from st_aggrid import AgGrid
 
-# Import futuristic font from Google Fonts
-st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
-""", unsafe_allow_html=True)
-
-if 'table_key' not in st.session_state:
-    st.session_state.table_key = 0
-
 st.set_page_config(page_title="Deals Scout Daily", layout="wide")
 
 # ── Full-screen responsive video: plays once, freezes on last frame, covers entire screen ──
@@ -83,20 +75,12 @@ video_background = """
 
 st.markdown(video_background, unsafe_allow_html=True)
 
+st.title("Deals Scout Daily – Family MVP")
 st.markdown("""
-<h1 style="
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    color: white;
-    text-align: center;
-    font-size: 3.5rem;          /* adjust size as needed */
-    margin-bottom: 1rem;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);  /* subtle glow for futuristic effect */
-">
-    Deal Scout
-</h1>
-""", unsafe_allow_html=True)
-st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
+Pulls active listings from CRMLS API → filters out condos/units/HOA/low-value →  
+joins with zoning → calculates potential units & price per unit.  
+Sort the table however you want (click column headers).
+""")
 
 # ── Secrets (add these in Streamlit Cloud → Settings → Secrets) ──
 CLIENT_ID     = st.secrets.get("CLIENT_ID", "32faf26bf8db4e12ac712b9c9f578faa")
@@ -122,6 +106,7 @@ def load_zoning():
 
 zoning_gdf = load_zoning()
 st.caption(f"Zoning loaded ({len(zoning_gdf)} polygons)")
+
 
 # ── Fetch & Process Button ────────────────────────────────
 # Move this CSS block higher — right after the Google Fonts import
