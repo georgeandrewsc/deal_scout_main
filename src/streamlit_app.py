@@ -4,8 +4,9 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import requests
+from la_neighborhoods import LA_CITY_NEIGHBORHOODS
 
-st.set_page_config(page_title="Deals Scout Daily", layout="wide")
+st.set_page_config(page_title="Deals Scout Daily - Apts", layout="wide")
 
 # ─── Load custom styles ────────────────────────────────
 try:
@@ -23,6 +24,17 @@ def load_zoning():
         return gdf
     except Exception as e:
         st.error(f"Could not load zoning: {e}")
+        return None
+
+@st.cache_data(ttl="24h", show_spinner=False)
+def load_coast():
+    try:
+        gdf = gpd.read_file(COAST_URL)
+        if gdf.crs != "EPSG:4326":
+            gdf = gdf.to_crs("EPSG:4326")
+        return gdf
+    except Exception as e:
+        st.error(f"Could not load coast: {e}")
         return None
 
 # ── Full-screen responsive video ── plays twice then stops ──
@@ -99,8 +111,9 @@ CLIENT_SECRET = st.secrets.get("CLIENT_SECRET", "82ff1c63ee4141d0bfe2924c0ae9c5d
 TOKEN_URL     = "https://api.cotality.com/trestle/oidc/connect/token"
 API_BASE      = "https://api.cotality.com/trestle/odata"
 
-# ── Zoning ──
+# ── Zoning and Coast URLs ──
 ZONING_URL = "/workspaces/deal_scout_main/src/zoning.geojson"
+COAST_URL = "/workspaces/deal_scout_main/src/coastal.geojson"
 
 # ── Futuristic button style ──
 st.markdown("""
@@ -129,26 +142,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-if st.button("Put me on the fish", type="primary", key="fish_button"):
+col1, col2 = st.columns(2)
 
-    status = st.status("Starting process...", expanded=True)
-    status.update(label="Initializing zoning layer...", state="running")
+with col1:
+    development_button = st.button("Put me on the Development Fish", type="primary", key="dev_fish_button")
 
-    placeholder = st.empty()
-    placeholder.spinner("Loading zoning data...")
+with col2:
+    apartment_button = st.button("Put me on the Apartment Fish", type="primary", key="apt_fish_button")
 
-    zoning_gdf = load_zoning()
-    placeholder.empty()
-
-    if zoning_gdf is None:
-        status.update(label="Failed to load zoning data", state="error")
-        st.stop()
-
-    status.update(
-        label=f"Zoning layer loaded successfully ({len(zoning_gdf):,} polygons)",
-        state="complete"
-    )
-
+# Common token fetch (run only if a button is pressed)
+if development_button or apartment_button:
     with st.spinner("Getting API token..."):
         token_resp = requests.post(
             TOKEN_URL,
@@ -169,6 +172,26 @@ if st.button("Put me on the fish", type="primary", key="fish_button"):
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json"
     }
+
+if development_button:
+
+    status = st.status("Starting Development process...", expanded=True)
+    status.update(label="Initializing zoning layer...", state="running")
+
+    placeholder = st.empty()
+    placeholder.spinner("Loading zoning data...")
+
+    zoning_gdf = load_zoning()
+    placeholder.empty()
+
+    if zoning_gdf is None:
+        status.update(label="Failed to load zoning data", state="error")
+        st.stop()
+
+    status.update(
+        label=f"Zoning layer loaded successfully ({len(zoning_gdf):,} polygons)",
+        state="complete"
+    )
 
     with st.spinner("Fetching MLS listings (1–3 min)..."):
         selected_fields = [
@@ -295,7 +318,7 @@ if st.button("Put me on the fish", type="primary", key="fish_button"):
 
     display_df = display_df.head(750)
 
-    st.success(f"Showing top {len(display_df):,} deals after all filters")
+    st.success(f"Showing top {len(display_df):,} development deals after all filters")
     if len(display_df) < len(matched):
         st.caption(f"(filtered & sorted from {len(matched):,} total matches)")
 
@@ -320,8 +343,158 @@ if st.button("Put me on the fish", type="primary", key="fish_button"):
 
     csv = display_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="Download Top Deals CSV",
+        label="Download Top Development Deals CSV",
         data=csv,
-        file_name="deals_top_deals.csv",
+        file_name="development_deals.csv",
+        mime="text/csv"
+    )
+
+if apartment_button:
+
+
+    status = st.status("Starting Apartment process...", expanded=True)
+    status.update(label="Initializing coast layer...", state="running")
+
+    placeholder = st.empty()
+    placeholder.spinner("Loading coast data...")
+
+    coast_gdf = load_coast()
+    placeholder.empty()
+
+    if coast_gdf is None:
+        status.update(label="Failed to load coast data", state="error")
+        st.stop()
+
+    status.update(
+        label=f"Coast layer loaded successfully ({len(coast_gdf):,} features)",
+        state="complete"
+    )
+
+    with st.spinner("Fetching MLS listings (1–3 min)..."):
+        selected_fields = [
+            'ListingKey', 'MlsStatus', 'ListPrice', 'StreetNumber', 'StreetName', 'UnitNumber', 'City',
+            'Longitude', 'Latitude', 'DaysOnMarket', 'PropertyType', 'PropertySubType',
+            'NumberOfUnitsTotal', 'YearBuilt', 'BuildingAreaTotal', 'BedroomsTotal', 'ParkingTotal'
+        ]
+        query = f"{API_BASE}/Property?" + "&".join([
+            f"$select={','.join(selected_fields)}",
+            "$filter=MlsStatus eq 'Active' and PropertyType eq 'ResidentialIncome' and NumberOfUnitsTotal ge 2 and Longitude ne null and Latitude ne null and Latitude ge 32 and Latitude le 35",
+            "$top=200",
+            "$orderby=ListPrice asc"
+        ])
+
+        
+
+        all_listings = []
+        next_url = query
+        progress_bar = st.progress(0)
+        count = 0
+
+        while next_url:
+            resp = requests.get(next_url, headers=headers)
+            if resp.status_code != 200:
+                st.error(f"API error {resp.status_code}: {resp.text[:300]}")
+                st.stop()
+            page = resp.json()
+            all_listings.extend(page.get("value", []))
+            next_url = page.get("@odata.nextLink")
+            count += len(page.get("value", []))
+            progress_bar.progress(min(count / 10000, 1.0))
+
+        mls = pd.DataFrame(all_listings)
+        mls.rename(columns={"ListPrice": "CurrentPrice"}, inplace=True)
+
+    with st.spinner("Cleaning data & calculating..."):
+        def build_address(r):
+            parts = [str(r.get(c, '')) for c in ['StreetNumber', 'StreetName', 'City'] if pd.notna(r.get(c))]
+            return ' '.join(parts).strip()
+
+        mls['Address'] = mls.apply(build_address, axis=1)
+
+        valid = mls.dropna(subset=['NumberOfUnitsTotal', 'Longitude', 'Latitude', 'CurrentPrice', 'BuildingAreaTotal', 'BedroomsTotal', 'ParkingTotal', 'YearBuilt'])
+        valid = valid[(valid['NumberOfUnitsTotal'] >= 2) & (valid['NumberOfUnitsTotal'] <= 1000)]
+        valid = valid[(valid['CurrentPrice'] > 0)]
+
+        # Exclude LA pre-1978
+        # valid = valid[~((valid['City'].str.strip().str.lower() == 'los angeles') & (valid['YearBuilt'] < 1978))]
+        
+        # Normalize city names for lookup (strip, lower, remove extra spaces)
+        valid['City_normalized'] = valid['City'].astype(str).str.strip().str.lower()
+
+        # Exclude if the City field matches ANY known LA City neighborhood/community and is built pre-1978
+        valid = valid[~valid['City_normalized'].isin(LA_CITY_NEIGHBORHOODS)& (valid['YearBuilt'] < 1978)]
+
+        # Optional: drop the helper column if you don't need it
+        valid = valid.drop(columns=['City_normalized'], errors='ignore')
+
+        # Building size and bedrooms
+        valid = valid[valid['BuildingAreaTotal'] >= valid['NumberOfUnitsTotal'] * 1000]
+        valid = valid[valid['BedroomsTotal'] <= valid['NumberOfUnitsTotal'] * 2]
+
+        # Parking
+        valid = valid[valid['ParkingTotal'] >= valid['NumberOfUnitsTotal']]
+
+        # Calculate price per unit
+        valid['price_per_unit'] = (valid['CurrentPrice'] / valid['NumberOfUnitsTotal']).round().astype(int)
+
+        # Geo for distance
+        gdf_mls = gpd.GeoDataFrame(
+            valid,
+            geometry=gpd.points_from_xy(valid.Longitude, valid.Latitude),
+            crs="EPSG:4326"
+        )
+        gdf_mls = gdf_mls.to_crs("EPSG:32611")  # UTM 11N for SoCal
+
+        coast_gdf = coast_gdf.to_crs("EPSG:32611")
+        coast_boundary = coast_gdf.unary_union.boundary
+
+        gdf_mls['dist_to_coast_m'] = gdf_mls.geometry.distance(coast_boundary)
+
+        gdf_mls['max_ppu'] = np.where(gdf_mls['dist_to_coast_m'] <= 804.672, 600000, 500000)
+
+        # Filter price per unit
+        matched = gdf_mls[gdf_mls['price_per_unit'] <= gdf_mls['max_ppu']]
+
+        # Format price per unit display
+        matched['price_per_unit_display'] = ((matched['price_per_unit'] / 1000).round(0).astype(int)).astype(str) + 'k'
+
+    # ── Sort ──
+    matched = matched.sort_values('price_per_unit', ascending=True)
+
+    # ── Prepare display dataframe ──
+    display_df = matched[[
+        'Address',
+        'price_per_unit_display',
+        'CurrentPrice'
+    ]].rename(columns={
+        'price_per_unit_display': 'Price per Unit',
+        'CurrentPrice': 'Purchase Price'
+    })
+
+    display_df = display_df.head(750)
+
+    st.success(f"Showing top {len(display_df):,} apartment deals after all filters")
+    if len(display_df) < len(matched):
+        st.caption(f"(filtered & sorted from {len(matched):,} total matches)")
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Address": st.column_config.TextColumn("Address", width="medium"),
+            "Price per Unit": st.column_config.TextColumn("Price per Unit", width="small"),
+            "Purchase Price": st.column_config.NumberColumn(
+                "Purchase Price",
+                format="$%d",
+            ),
+        }
+    )
+
+    csv = display_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Top Apartment Deals CSV",
+        data=csv,
+        file_name="apartment_deals.csv",
         mime="text/csv"
     )
